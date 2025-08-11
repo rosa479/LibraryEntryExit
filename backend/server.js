@@ -2,8 +2,10 @@ const express = require('express')
 require('dotenv').config()
 const eventsRoutes = require('./routes/events')
 const analyticsRoutes = require('./routes/analytics')
+const cors = require('cors')
 
 const app = express()
+app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json())
 
 app.use('/events', eventsRoutes)

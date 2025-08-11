@@ -50,7 +50,7 @@ router.get('/history/:roll', async (req, res) => {
 
 router.get('/current', async (req, res) => {
     try {
-        const result = await pool.query(`
+        const results = await pool.query(`
       SELECT s.roll, s.name, l.event_time AS entry_time, l.laptop
       FROM logs l
       JOIN students s ON s.roll = l.roll

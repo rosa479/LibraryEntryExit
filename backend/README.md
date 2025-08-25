@@ -1,22 +1,22 @@
 ==================================================
-==      LIBRARY SYSTEM API DOCUMENTATION      ==
+==       LIBRARY SYSTEM API DOCUMENTATION       ==
 ==================================================
 
 This document provides a complete reference for the Library System API, which is divided into two main parts: Event Endpoints and Analytics Endpoints.
 
 
 ==================================================
-==   Event Endpoints (/api/events)            ==
+==       Event Endpoints (/events)              ==
 ==================================================
 These endpoints handle the core actions of recording student entries and exits.
 
 ---
 Endpoint: POST /entry
 ---
-Description: Registers a new "entry" event for a student, logging the time and any items they bring in. It verifies that the student exists and is not already marked as being inside the library.
+Description: Registers a new "entry" event for a student, logging the time and any items they bring in. It validates the roll number format and checks that the student is not already inside the library.
 
 Request Body:
-  - roll (String, Required): The unique roll number of the student.
+  - roll (String, Required): The unique roll number of the student (e.g., 25CS30045).
   - laptop (String, Optional): An identifier for the laptop (e.g., serial number).
   - books (Array of Strings, Optional): A list of book titles or IDs the student is bringing in.
 
@@ -33,16 +33,16 @@ Success Response (200 OK):
 }
 
 Error Responses:
-  - 400 Bad Request: { "error": "Student already inside" }
+  - 400 Bad Request: { "error": "Invalid roll number format." }
   - 400 Bad Request: { "error": "Roll is required" }
-  - 404 Not Found: { "error": "Student not found" }
+  - 400 Bad Request: { "error": "Student already inside" }
 
 --------------------------------------------------
 
 ---
 Endpoint: POST /exit
 ---
-Description: Registers a new "exit" event for a student, calculating their duration of stay. It automatically assumes the student leaves with the same items they entered with; book information is not required in the request.
+Description: Registers a new "exit" event for a student, calculating their duration of stay. It automatically assumes the student leaves with the same items they entered with; book information is not required in the request. The roll number format is validated.
 
 Request Body:
   - roll (String, Required): The unique roll number of the student.
@@ -59,14 +59,14 @@ Success Response (200 OK):
 }
 
 Error Responses:
+  - 400 Bad Request: { "error": "Invalid roll number format." }
   - 400 Bad Request: { "error": "Already exited" }
   - 400 Bad Request: { "error": "No prior entry found" }
   - 400 Bad Request: { "error": "Roll is required" }
-  - 404 Not Found: { "error": "Student not found" }
 
 
 ==================================================
-==   Analytics Endpoints (/api/analytics)     ==
+==       Analytics Endpoints (/analytics)       ==
 ==================================================
 These endpoints provide various statistical views of the library usage data.
 
@@ -76,7 +76,7 @@ Endpoint: GET /history/:roll
 Description: Retrieves the complete entry/exit session history for a specific student.
 
 Example Request:
-GET /api/analytics/history/25ME10132
+GET /analytics/history/25ME10132
 
 Sample Response:
 {
@@ -105,9 +105,10 @@ Sample Response:
 Endpoint: GET /current
 ---
 Description: Shows a live list of all students currently inside the library.
+_Note: Student names are no longer available in this response._
 
 Example Request:
-GET /api/analytics/current
+GET /analytics/current
 
 Sample Response:
 {
@@ -116,21 +117,18 @@ Sample Response:
   "current": [
     {
       "roll": "25EE10098",
-      "name": "Priya Sharma",
       "entryTime": "2025-08-12T17:05:10.000Z",
       "durationMinutes": 60,
       "hasLaptop": true
     },
     {
       "roll": "25CS30045",
-      "name": "Ankit Verma",
       "entryTime": "2025-08-12T17:50:22.000Z",
       "durationMinutes": 15,
       "hasLaptop": true
     },
     {
       "roll": "25AE3A001",
-      "name": "Sneha Reddy",
       "entryTime": "2025-08-12T15:04:00.000Z",
       "durationMinutes": 181,
       "hasLaptop": false
@@ -150,7 +148,7 @@ Parameters:
   - end (YYYY-MM-DD)
 
 Example Request:
-GET /api/analytics/range?start=2025-08-09&end=2025-08-12
+GET /analytics/range?start=2025-08-09&end=2025-08-12
 
 Sample Response:
 [
@@ -168,7 +166,7 @@ Endpoint: GET /day/:day
 Description: Returns aggregate statistics for a single day.
 
 Example Request:
-GET /api/analytics/day/2025-08-11
+GET /analytics/day/2025-08-11
 
 Sample Response:
 {
@@ -187,7 +185,7 @@ Endpoint: GET /month/:month
 Description: Returns aggregate statistics and a daily breakdown for a specific month.
 
 Example Request:
-GET /api/analytics/month/2025-07
+GET /analytics/month/2025-07
 
 Sample Response:
 {
@@ -211,7 +209,7 @@ Endpoint: GET /year/:year
 Description: Returns aggregate statistics and a monthly breakdown for a specific year.
 
 Example Request:
-GET /api/analytics/year/2025
+GET /analytics/year/2025
 
 Sample Response:
 {

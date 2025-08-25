@@ -1,30 +1,24 @@
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
+    Card,
+    CardHeader,
+    CardTitle,
+    CardContent,
 } from "@/components/ui/card";
 
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
 
-const RecentAct = () => {
-
-    
-
-    const activities = [
-        { roll: "24NA10046", status: "Checked In", time: "10:00 AM" },
-        { roll: "24NA10047", status: "Checked Out", time: "10:30 AM" },
-        { roll: "24NA10048", status: "Checked In", time: "11:00 AM" },
-        { roll: "24NA10049", status: "Checked Out", time: "11:30 AM" },
-        { roll: "24NA10050", status: "Checked In", time: "12:00 PM" },
-    ];
+const RecentAct = ({ activities }) => {
+    //writing the logic for 10 number of activities
+    if(activities.length === 10) {
+        activities.shift();
+    }
 
     return (
         <Card>
@@ -41,7 +35,7 @@ const RecentAct = () => {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {activities.map((entry, index) => (
+                        {activities.slice().reverse().map((entry, index) => (
                             <TableRow key={index}>
                                 <TableCell>{entry.roll}</TableCell>
                                 <TableCell

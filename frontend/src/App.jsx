@@ -3,14 +3,12 @@ import Home from './pages/Home.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Layout from './components/Admin/Layout.jsx';
 import LogsHistory from './pages/LogHistory.jsx';
-import Login from './components/Admin/Login.jsx';
 import { Navigate } from 'react-router-dom';
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './App.css';
 
 function App() {
-  const token = true;
 
 
 
@@ -24,7 +22,7 @@ function App() {
           <Route path="/" element={<Home />} />
 
           {/* Admin Layout Routes */}
-          <Route path="/dashboard" element={token ? <Layout /> : <Login />}>
+          <Route path="/dashboard" element={<Layout />}>
             {/* Default route for /dashboard */}
             <Route index element={<Dashboard />} />
 

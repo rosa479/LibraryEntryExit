@@ -5,6 +5,9 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Input } from "@/components/ui/input";
 
 export default function LogsHistory() {
+  
+
+
   const logs = [
     { id: 1, name: "Rahul Sharma", roll: "20CS1001", date: "2025-08-10", checkIn: "09:30 AM", checkOut: "02:15 PM" },
     { id: 2, name: "Priya Verma", roll: "20EE1022", date: "2025-08-10", checkIn: "10:15 AM", checkOut: "" },
@@ -19,6 +22,11 @@ export default function LogsHistory() {
     (searchRoll ? log.roll.toLowerCase().includes(searchRoll.toLowerCase()) : true) &&
     (searchDate ? log.date === searchDate : true)
   );
+
+  async function fetchLogs() {
+    
+    const logs = await fetch("http://localhost:3000/api/analytics/range");
+  }
 
   return (
     <div className="p-4 w-full">

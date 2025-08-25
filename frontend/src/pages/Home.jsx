@@ -1,10 +1,12 @@
 // App.tsx or App.jsx
 import axios from "axios";
+import React, { useState } from "react";
 import Form from "../components/Form.jsx";
 import Navbar from "../components/Navbar.jsx";
 import RecentAct from "../components/RecentAct.jsx";
 
 export default function App() {
+  const [recent , setRecent] = useState([]);
 
 
   return (
@@ -19,11 +21,11 @@ export default function App() {
         <div className="w-full max-w-4xl space-y-8">
 
           {/* Check In/Out Form */}
-           <Form />
+           <Form setRecent={setRecent} />
 
           {/* Recent Activity */}
-          <RecentAct />
-          
+          <RecentAct activities={recent} />
+
         </div>
       </main>
     </div>

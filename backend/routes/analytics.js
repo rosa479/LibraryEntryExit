@@ -24,7 +24,6 @@ router.get('/history/:roll', async (req, res) => {
         )
 
         const sessions = []
-        // Corrected 'results' to 'result' in the line below
         for (let i = 0; i < result.rows.length; i++) {
             const row = result.rows[i]
             if (row.event_type === 'entry') {
@@ -85,33 +84,72 @@ router.get('/current', async (req, res) => {
 
 // Example: /api/analytics/range?start=2025-08-01&end=2025-08-12
 router.get('/range', async (req, res) => {
-    const { start, end } = req.query;
+    const { start, end } = req.query;
 
-    if (!start || !end) {
-        return res.status(400).json({ error: 'Please provide both a start and end date query parameter.' });
+    if (!start || !end) {
+        return res.status(400).json({ error: 'Please provide both a start and end date query parameter.' });
+    }
+
+    try {
+        // This query uses generate_series to create a full list of dates in the range,
+        // then LEFT JOINs the entry counts. This ensures days with 0 entries are included.
+        const result = await pool.query(`
+            SELECT
+                d.day::date AS date,
+                COALESCE(e.count, 0)::integer AS entries
+            FROM
+                generate_series($1::date, $2::date, '1 day'::interval) AS d(day)
+            LEFT JOIN (
+                SELECT
+                    event_time::date AS day,
+                    COUNT(*) as count
+                FROM logs
+                WHERE
+                    event_type = 'entry'
+                GROUP BY
+                    day
+            ) AS e ON d.day = e.day
+            ORDER BY
+                d.day;
+        `, [start, end]);
+
+        res.json(result.rows);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+// Example: /api/analytics/date/2025-08-25
+// Fetches all log entries for a specific date
+router.get('/date/:date', async (req, res) => {
+    const { date } = req.params;
+    const dateParts = date.split('-');
+
+    if (dateParts.length !== 3) {
+        return res.status(400).json({ error: 'Invalid date format. Please use YYYY-MM-DD.' });
     }
 
+    const [year, month, day] = dateParts;
+    const { start, end } = getDateRange(year, month, day);
+
     try {
-        // This query uses generate_series to create a full list of dates in the range,
-        // then LEFT JOINs the entry counts. This ensures days with 0 entries are included.
         const result = await pool.query(`
-            SELECT
-                d.day::date AS date,
-                COALESCE(e.count, 0)::integer AS entries
-            FROM
-                generate_series($1::date, $2::date, '1 day'::interval) AS d(day)
-            LEFT JOIN (
-                SELECT
-                    event_time::date AS day,
-                    COUNT(*) as count
-                FROM logs
-                WHERE
-                    event_type = 'entry'
-                GROUP BY
-                    day
-            ) AS e ON d.day = e.day
-            ORDER BY
-                d.day;
+            SELECT 
+                l.id,
+                l.roll,
+                s.name,
+                l.event_time,
+                l.event_type,
+                l.laptop,
+                l.books,
+                l.stay_duration
+            FROM logs AS l
+            JOIN students AS s ON l.roll = s.roll
+            WHERE l.event_time >= $1 AND l.event_time < $2
+            ORDER BY l.event_time ASC
         `, [start, end]);
 
         res.json(result.rows);
@@ -136,7 +174,7 @@ router.get('/day/:day', async (req, res) => {
         (SELECT COUNT(*) FROM day_logs WHERE event_type = 'entry') AS total_entries,
         (SELECT COUNT(DISTINCT roll) FROM day_logs WHERE event_type = 'entry') AS unique_students,
         (SELECT COUNT(*) FROM day_logs WHERE event_type = 'entry' AND laptop IS NOT NULL) AS laptop_users,
-        (SELECT TRUNC(AVG(EXTRACT(EPOCH FROM stay_duration)/60)) FROM day_logs WHERE event_type = 'exit' AND stay_duration IS NOT NULL) AS avg_stay_minutes
+        (SELECT TRUNC(AVG(EXTRACT(EPOCH FROM stay_duration)/60)) FROM day_logs WHERE event_type = 'exit' AND stay_duration IS NOT NULL) AS avg_stay_minutes
     `, [start, end])
 
     const stats = statsResult.rows[0]
@@ -145,7 +183,7 @@ router.get('/day/:day', async (req, res) => {
       date: day,
       totalEntries: parseInt(stats.total_entries || 0),
       totalUniqueStudents: parseInt(stats.unique_students || 0),
-      avgStayMinutes: parseInt(stats.avg_stay_minutes || 0),
+      avgStayMinutes: parseInt(stats.avg_stay_minutes || 0),
       laptopUsersCount: parseInt(stats.laptop_users || 0)
     })
   } catch (err) {
@@ -159,32 +197,32 @@ router.get('/month/:month', async (req, res) => {
   const { start, end } = getDateRange(year, month)
 
   try {
-    const summaryQuery = pool.query(`
-        SELECT
-            COUNT(*) AS total_entries,
-            COUNT(DISTINCT roll) AS unique_students,
-            COUNT(*) FILTER (WHERE laptop IS NOT NULL) AS laptop_users
-        FROM logs
-        WHERE event_type = 'entry' AND event_time >= $1 AND event_time < $2;
-    `, [start, end]);
+    const summaryQuery = pool.query(`
+        SELECT
+            COUNT(*) AS total_entries,
+            COUNT(DISTINCT roll) AS unique_students,
+            COUNT(*) FILTER (WHERE laptop IS NOT NULL) AS laptop_users
+        FROM logs
+        WHERE event_type = 'entry' AND event_time >= $1 AND event_time < $2;
+    `, [start, end]);
 
-    const breakdownQuery = pool.query(`
-        SELECT
-            event_time::date AS day,
-            COUNT(*) AS entries
-        FROM logs
-        WHERE event_type = 'entry' AND event_time >= $1 AND event_time < $2
-        GROUP BY day
-        ORDER BY day;
-    `, [start, end]);
+    const breakdownQuery = pool.query(`
+        SELECT
+            event_time::date AS day,
+            COUNT(*) AS entries
+        FROM logs
+        WHERE event_type = 'entry' AND event_time >= $1 AND event_time < $2
+        GROUP BY day
+        ORDER BY day;
+    `, [start, end]);
 
-    const [summaryResult, breakdownResult] = await Promise.all([summaryQuery, breakdownQuery]);
-    
-    const summary = summaryResult.rows[0];
-    const dailyBreakdown = breakdownResult.rows.reduce((acc, row) => {
-        acc[row.day.toISOString().split('T')[0]] = parseInt(row.entries);
-        return acc;
-    }, {});
+    const [summaryResult, breakdownResult] = await Promise.all([summaryQuery, breakdownQuery]);
+    
+    const summary = summaryResult.rows[0];
+    const dailyBreakdown = breakdownResult.rows.reduce((acc, row) => {
+        acc[row.day.toISOString().split('T')[0]] = parseInt(row.entries);
+        return acc;
+    }, {});
 
     res.json({
       month: req.params.month,
@@ -204,32 +242,32 @@ router.get('/year/:year', async (req, res) => {
   const { start, end } = getDateRange(year)
 
   try {
-    const summaryQuery = pool.query(`
-        SELECT
-            COUNT(*) AS total_entries,
-            COUNT(DISTINCT roll) AS unique_students,
-            COUNT(*) FILTER (WHERE laptop IS NOT NULL) AS total_laptop_entries
-        FROM logs
-        WHERE event_type = 'entry' AND event_time >= $1 AND event_time < $2;
-    `, [start, end]);
+    const summaryQuery = pool.query(`
+        SELECT
+            COUNT(*) AS total_entries,
+            COUNT(DISTINCT roll) AS unique_students,
+            COUNT(*) FILTER (WHERE laptop IS NOT NULL) AS total_laptop_entries
+        FROM logs
+        WHERE event_type = 'entry' AND event_time >= $1 AND event_time < $2;
+    `, [start, end]);
 
-    const breakdownQuery = pool.query(`
-        SELECT
-            TO_CHAR(event_time, 'YYYY-MM') AS month,
-            COUNT(*) AS entries
-        FROM logs
-        WHERE event_type = 'entry' AND event_time >= $1 AND event_time < $2
-        GROUP BY month
-        ORDER BY month;
-    `, [start, end]);
-    
-    const [summaryResult, breakdownResult] = await Promise.all([summaryQuery, breakdownQuery]);
+    const breakdownQuery = pool.query(`
+        SELECT
+            TO_CHAR(event_time, 'YYYY-MM') AS month,
+            COUNT(*) AS entries
+        FROM logs
+        WHERE event_type = 'entry' AND event_time >= $1 AND event_time < $2
+        GROUP BY month
+        ORDER BY month;
+    `, [start, end]);
+    
+    const [summaryResult, breakdownResult] = await Promise.all([summaryQuery, breakdownQuery]);
 
-    const summary = summaryResult.rows[0];
-    const monthWiseBreakdown = breakdownResult.rows.reduce((acc, row) => {
-        acc[row.month] = parseInt(row.entries);
-        return acc;
-    }, {});
+    const summary = summaryResult.rows[0];
+    const monthWiseBreakdown = breakdownResult.rows.reduce((acc, row) => {
+        acc[row.month] = parseInt(row.entries);
+        return acc;
+    }, {});
 
     res.json({
       year,

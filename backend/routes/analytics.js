@@ -2,9 +2,20 @@ const express = require("express")
 const pool = require('../db')
 const router = express.Router()
 
+/**
+ * Generates a start and end date object for a given year, month, and day.
+ * The range covers the entire specified period (whole day, whole month, or whole year).
+ * @param {string} year - The full year (e.g., "2023").
+ * @param {string} [month] - The month (1-12). Optional.
+ * @param {string} [day] - The day (1-31). Optional.
+ * @returns {{start: Date, end: Date}} An object containing the start and end Date objects.
+ */
 function getDateRange(year, month, day) {
-    const start = new Date(`${year}-${month || '01'}-${day || '01'}T00:00:00`)
+    // Create the start date. Defaults to the beginning of the year/month if day/month are not provided.
+    const start = new Date(`${year}-${month || '01'}-${day || '01'}T00:00:00Z`)
     const end = new Date(start)
+
+    // Set the end date to the beginning of the next period
     if (day) {
       end.setDate(end.getDate() + 1)
     } else if (month) {
@@ -15,38 +26,83 @@ function getDateRange(year, month, day) {
     return { start, end }
 }
 
-router.get('/history/:roll', async (req, res) => {
-    const { roll } = req.params
-    try {
-        const result = await pool.query(
-          `SELECT * FROM logs WHERE roll = $1 ORDER BY event_time ASC`,
-          [roll]
-        )
+/**
+ * Fetches historical log sessions.
+ * Can be filtered by `roll` and/or `date` via query parameters.
+ * - /history?roll=12345
+ * - /history?date=2023-10-27
+ * - /history?roll=12345&date=2023-10-27
+ */
+router.get('/history', async (req, res) => {
+    const { roll, date } = req.query;
 
-        const sessions = []
+    // A roll number or a date must be provided to filter the history.
+    if (!roll && !date) {
+        return res.status(400).json({ error: 'Please provide a roll number and/or a date query parameter.' });
+    }
+
+    try {
+        let baseQuery = `SELECT * FROM logs`;
+        const params = [];
+        const conditions = [];
+
+        // If a roll number is provided, add it to the query conditions.
+        if (roll) {
+            params.push(roll);
+            conditions.push(`roll = $${params.length}`);
+        }
+
+        // If a date is provided, add the date range to the query conditions.
+        if (date) {
+            const dateParts = date.split('-');
+            if (dateParts.length !== 3) {
+                return res.status(400).json({ error: 'Invalid date format. Please use YYYY-MM-DD.' });
+            }
+            const [year, month, day] = dateParts;
+            const { start, end } = getDateRange(year, month, day);
+            params.push(start, end);
+            conditions.push(`event_time >= $${params.length - 1} AND event_time < $${params.length}`);
+        }
+
+        // Combine all conditions into a WHERE clause.
+        if (conditions.length > 0) {
+            baseQuery += ` WHERE ${conditions.join(' AND ')}`;
+        }
+
+        // Order by roll number and time to correctly pair entry/exit events.
+        const finalQuery = `${baseQuery} ORDER BY roll, event_time ASC`;
+
+        const result = await pool.query(finalQuery, params);
+
+        // Process the query results to pair 'entry' and 'exit' events into sessions.
+        const sessions = [];
         for (let i = 0; i < result.rows.length; i++) {
-            const row = result.rows[i]
+            const row = result.rows[i];
             if (row.event_type === 'entry') {
-                const exit = result.rows[i+1]
-                if (exit && exit.event_type === 'exit') {
+                const nextRow = result.rows[i + 1];
+                // Check if the next log is a matching 'exit' for the same roll number.
+                if (nextRow && nextRow.roll === row.roll && nextRow.event_type === 'exit') {
                     sessions.push({
+                        roll: row.roll,
                         entryTime: row.event_time,
-                        exitTime: exit.event_time,
-                        duration: exit.stay_duration,
+                        exitTime: nextRow.event_time,
+                        duration: nextRow.stay_duration,
                         laptop: row.laptop,
                         books: row.books
-                    })
-                    i++ // Skip the matched exit event
+                    });
+                    i++; // Increment index to skip the matched exit event.
                 }
             }
         }
 
-        res.json({ roll, sessions })
+        res.json({ sessions });
+
     } catch (err) {
-        console.error(err)
-        res.status(500).json({ error : 'Internal server error' })
+        console.error(err);
+        res.status(500).json({ error: 'Internal server error' });
     }
-})
+});
+
 
 router.get('/current', async (req, res) => {
     try {

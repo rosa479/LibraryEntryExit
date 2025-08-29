@@ -1,6 +1,5 @@
 import {
   Card,
-  CardHeader,
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
@@ -11,8 +10,6 @@ import {
   LogIn,
   LogOut,
   Users,
-  UserCheck,
-  UserMinus,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
@@ -27,6 +24,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import RecentAct from '../components/RecentAct.jsx'
 
 // --------- Configuration: Toggle dummy data here ----------
 const USE_DUMMY_DATA = true; // Change this to true to use dummy data
@@ -276,24 +274,8 @@ export default function Dashboard() {
       <Separator />
 
       {/* Recent Activity Section */}
-      <section className="shadow rounded-xl bg-white p-6 max-w-4xl mx-auto">
-        <CardTitle>Recent Activity</CardTitle>
-        <div className="divide-y divide-gray-200 max-h-64 overflow-y-auto mt-4">
-          {recentActivities.length === 0 && (
-            <p className="text-gray-500 text-center py-8">No recent activity found</p>
-          )}
-          {recentActivities.map((activity) => (
-            <div key={activity.id} className="flex justify-between items-center py-3">
-              <div>
-                <p className="text-gray-800 font-semibold">{activity.roll}</p>
-                <p className="text-gray-500 text-sm">
-                  {activity.type} at {activity.time}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <RecentAct activities={recentActivities} />
+
     </div>
   );
 }

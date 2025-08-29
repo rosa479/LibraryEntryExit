@@ -1,12 +1,11 @@
 // App.tsx or App.jsx
 import axios from "axios";
 import React, { useState } from "react";
-import Form from "../components/Form.jsx";
 import Navbar from "../components/Navbar.jsx";
-import RecentAct from "../components/RecentAct.jsx";
+import FrontPage from '../components/FrontPage.jsx';
 
 export default function App() {
-  const [recent , setRecent] = useState([]);
+
 
 
   return (
@@ -18,14 +17,8 @@ export default function App() {
         <h2 className="text-3xl font-bold mb-8">Central Library</h2>
 
         {/* Unified Container */}
-        <div className="w-full max-w-4xl space-y-8">
-
-          {/* Check In/Out Form */}
-           <Form setRecent={setRecent} />
-
-          {/* Recent Activity */}
-          <RecentAct activities={recent} />
-
+        <div className="w-full max-w-6xl space-y-8">
+          <FrontPage/>
         </div>
       </main>
     </div>

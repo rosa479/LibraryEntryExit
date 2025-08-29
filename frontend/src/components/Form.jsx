@@ -1,3 +1,4 @@
+//Delete this as this is not currenty in use anywhere 
 import {
   Card,
   CardHeader,
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
-const Form = ({ setRecent }) => {
+const Form = () => {
   const [roll, setRoll] = useState("");
   const [laptop, setLaptop] = useState("");
   const [books, setBooks] = useState("");
@@ -16,22 +17,7 @@ const Form = ({ setRecent }) => {
   // Main function using async/await pattern
   const handleFormSubmit = async (e, type) => {
     e.preventDefault();
-    const now = new Date();
-    let hours = now.getHours();
-    let minutes = now.getMinutes();
-    let ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    minutes = minutes < 10 ? "0" + minutes : minutes;
-    const timeString = `${hours}:${minutes} ${ampm}`;
 
-    const activities = {
-      roll,
-      laptop,
-      books,
-      time: timeString,
-      status: type === "entry" ? "Checked In" : "Checked Out",
-    };
     const entry = { roll, laptop, books };
 
     try {
@@ -50,9 +36,6 @@ const Form = ({ setRecent }) => {
       if (!response.ok) {
         throw new Error("Network response was not ok");
       }
-
-      setRecent((prev) => [...prev, activities]);
-
 
       setRoll("");
       setLaptop("");
